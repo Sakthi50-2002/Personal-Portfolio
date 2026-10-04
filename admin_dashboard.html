@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | Sakthi Narendran</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+            color: #1f2937;
+        }
+
+        /* NAVBAR */
+        .navbar {
+            background: #111827;
+            color: white;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .brand {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .active {
+            color: #22c55e;
+            font-weight: bold;
+        }
+
+        .logout {
+            background: #ef4444;
+            color: white;
+            text-decoration: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+        }
+
+        .logout:hover {
+            background: #dc2626;
+        }
+
+        /* NOTIFICATION */
+        .notification-wrapper {
+            position: relative;
+        }
+
+        .notification-btn {
+            width: 42px;
+            height: 42px;
+            border: none;
+            border-radius: 50%;
+            background: #1f2937;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .notification-btn:hover {
+            background: #374151;
+        }
+
+        .notification-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            font-size: 11px;
+            min-width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .notification-panel {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 52px;
+            width: 350px;
+            background: white;
+            color: #111827;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.20);
+            overflow: hidden;
+            z-index: 2000;
+        }
+
+        .notification-header {
+            padding: 15px;
+            background: #111827;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .notification-header button {
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+        }
+
+        .notification-list {
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        .notification-item {
+            padding: 13px;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+        }
+
+        .notification-item:hover {
+            background: #f3f4f6;
+        }
+
+        .notification-item strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .notification-item small {
+            color: #6b7280;
+        }
+
+        .no-notification {
+            padding: 25px;
+            text-align: center;
+            color: #6b7280;
+        }
+
+        .new-notification {
+            animation: notificationPulse 1s ease;
+        }
+
+        @keyframes notificationPulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.15);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* MAIN */
+        .container {
+            width: 94%;
+            max-width: 1400px;
+            margin: 25px auto;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 25px;
+        }
+
+        /* ALERT */
+        .security-alert {
+            background: #fff7ed;
+            border-left: 5px solid #f97316;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        /* HEALTH */
+        .health-box {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+        }
+
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .health-item {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .online {
+            color: #16a34a;
+            font-weight: bold;
+        }
+
+        /* STATS */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+        }
+
+        .card h3 {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .number {
+            font-size: 30px;
+            font-weight: bold;
+        }
+
+        /* SECTION */
+        .section {
+            background: white;
+            padding: 22px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+        }
+
+        .section h2 {
+            margin-bottom: 18px;
+        }
+
+        /* PROTECTION */
+        .protection-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 15px;
+        }
+
+        .protection-item {
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #22c55e;
+        }
+
+        .protection-item strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        /* BUTTONS */
+        .buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+            text-decoration: none;
+            color: white;
+            display: inline-block;
+        }
+
+        .btn-blue {
+            background: #2563eb;
+        }
+
+        .btn-green {
+            background: #16a34a;
+        }
+
+        .btn-purple {
+            background: #7c3aed;
+        }
+
+        .btn-orange {
+            background: #ea580c;
+        }
+
+        .btn-red {
+            background: #dc2626;
+        }
+
+        .btn:hover {
+            opacity: 0.88;
+        }
+
+        /* SEARCH */
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 7px;
+            margin-bottom: 18px;
+            font-size: 15px;
+        }
+
+        /* TABLE */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1100px;
+        }
+
+        th {
+            background: #111827;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            vertical-align: top;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        /* BADGES */
+        .badge {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .normal {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .important {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .spam {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .low {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .high {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .positive {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .negative {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .neutral {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        /* RESTORE */
+        .restore-box {
+            padding: 18px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        input[type="file"] {
+            margin: 10px 0;
+        }
+
+        /* FOOTER */
+        footer {
+            text-align: center;
+            padding: 25px;
+            color: #6b7280;
+        }
+
+        @media (max-width: 700px) {
+
+            .navbar {
+                padding: 12px;
+            }
+
+            .brand {
+                font-size: 15px;
+            }
+
+            .nav-right {
+                gap: 7px;
+            }
+
+            .notification-panel {
+                right: -80px;
+                width: 310px;
+            }
+
+            .container {
+                width: 96%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- ================= NAVBAR ================= -->
+
+<nav class="navbar">
+
+    <div class="brand">
+        🛡️ Sakthi Narendran - Admin Panel
+    </div>
+
+    <div class="nav-right">
+
+        <span class="active">
+            ● Admin Active
+        </span>
+
+        <!-- NOTIFICATION -->
+
+        <div class="notification-wrapper">
+
+            <button
+                class="notification-btn"
+                id="notificationButton"
+                onclick="toggleNotifications()">
+
+                🔔
+
+                <span
+                    class="notification-count"
+                    id="notificationCount">
+                    0
+                </span>
+
+            </button>
+
+            <div
+                class="notification-panel"
+                id="notificationPanel">
+
+                <div class="notification-header">
+
+                    <strong>Notifications</strong>
+
+                    <button onclick="clearNotifications()">
+                        Clear
+                    </button>
+
+                </div>
+
+                <div
+                    class="notification-list"
+                    id="notificationList">
+
+                    <div class="no-notification">
+                        No new messages
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <a
+            href="{{ url_for('admin_logout') }}"
+            class="logout">
+            Logout
+        </a>
+
+    </div>
+
+</nav>
+
+
+<!-- ================= MAIN ================= -->
+
+<div class="container">
+
+    <h1>Admin Dashboard</h1>
+
+    <p class="subtitle">
+        Manage your portfolio, messages and security system.
+    </p>
+
+
+    <!-- ================= SECURITY ALERT ================= -->
+
+    {% set risk = high_risk|default(0, true) %}
+    {% set spam_count = spam|default(0, true) %}
+
+    {% if risk > 0 or spam_count > 0 %}
+
+    <div class="security-alert">
+
+        ⚠️ <strong>Security Alert:</strong>
+
+        {% if risk > 0 %}
+            {{ risk }} high-risk message(s)
+        {% endif %}
+
+        {% if spam_count > 0 %}
+
+            {% if risk > 0 %}
+                and
+            {% endif %}
+
+            {{ spam_count }} spam message(s)
+
+        {% endif %}
+
+    </div>
+
+    {% else %}
+
+    <div class="security-alert">
+
+        🟢 <strong>Security Status:</strong>
+        No major security threats detected.
+
+    </div>
+
+    {% endif %}
+
+
+    <!-- ================= HEALTH ================= -->
+
+    <div class="health-box">
+
+        <h2>🖥️ System Health Monitor</h2>
+
+        <div class="health-grid">
+
+            <div class="health-item">
+                <strong>Server</strong>
+                <span class="online">● Online</span>
+            </div>
+
+            <div class="health-item">
+                <strong>Database</strong>
+                <span class="online">● Connected</span>
+            </div>
+
+            <div class="health-item">
+                <strong>Admin Session</strong>
+                <span class="online">● Active</span>
+            </div>
+
+            <div class="health-item">
+
+                <strong>Database Records</strong>
+
+                {{ db_records|default(0, true) }}
+
+            </div>
+
+            <div class="health-item">
+
+                <strong>Overall Health</strong>
+
+                <span class="online">
+
+                    {{ overall_health|default("Healthy", true) }}
+
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= MAIN STATS ================= -->
+
+    <div class="stats">
+
+        <div class="card">
+
+            <h3>Total Messages</h3>
+
+            <div class="number">
+
+                {{ total|default(0, true) }}
+
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <h3>Normal Messages</h3>
+
+            <div class="number">
+
+                {{ normal|default(0, true) }}
+
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <h3>Important Messages</h3>
+
+            <div class="number">
+
+                {{ important|default(0, true) }}
+
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <h3>Spam Messages</h3>
+
+            <div class="number">
+
+                {{ spam|default(0, true) }}
+
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <h3>High Risk</h3>
+
+            <div class="number">
+
+                {{ high_risk|default(0, true) }}
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= SECURITY STATISTICS ================= -->
+
+    <div class="section">
+
+        <h2>🔐 Security Statistics</h2>
+
+        <div class="stats">
+
+            <div class="card">
+
+                <h3>Successful Logins</h3>
+
+                <div class="number">
+
+                    {{ successful_logins|default(0, true) }}
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>Failed Logins</h3>
+
+                <div class="number">
+
+                    {{ failed_logins|default(0, true) }}
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>Security Events</h3>
+
+                <div class="number">
+
+                    {{ security_events|default(0, true) }}
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>Deleted Messages</h3>
+
+                <div class="number">
+
+                    {{ deleted_messages|default(0, true) }}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= SECURITY ANALYTICS ================= -->
+
+    <div class="section">
+
+        <h2>📊 Security Analytics</h2>
+
+        <div class="stats">
+
+            <div class="card">
+
+                <h3>Normal</h3>
+
+                <div class="number">
+
+                    {{ normal|default(0, true) }}
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>Important</h3>
+
+                <div class="number">
+
+                    {{ important|default(0, true) }}
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>Spam</h3>
+
+                <div class="number">
+
+                    {{ spam|default(0, true) }}
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>High Risk</h3>
+
+                <div class="number">
+
+                    {{ high_risk|default(0, true) }}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= SECURITY PROTECTION ================= -->
+
+    <div class="section">
+
+        <h2>🛡️ Security Protection Status</h2>
+
+        <div class="protection-grid">
+
+            <div class="protection-item">
+
+                <strong>🔑 Admin Authentication</strong>
+
+                Protected
+
+            </div>
+
+
+            <div class="protection-item">
+
+                <strong>🚫 Login Lockout</strong>
+
+                5 Attempts / 5 Minutes
+
+            </div>
+
+
+            <div class="protection-item">
+
+                <strong>📩 Contact Rate Limit</strong>
+
+                3 Messages / 60 Seconds
+
+            </div>
+
+
+            <div class="protection-item">
+
+                <strong>🤖 AI Message Analysis</strong>
+
+                Active
+
+            </div>
+
+
+            <div class="protection-item">
+
+                <strong>💾 Database Backup</strong>
+
+                Available
+
+            </div>
+
+
+            <div class="protection-item">
+
+                <strong>📋 Activity Logging</strong>
+
+                Active
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= AI ANALYSIS ================= -->
+
+    <div class="section">
+
+        <h2>🤖 AI Message Analysis</h2>
+
+        <div class="stats">
+
+            <div class="card">
+
+                <h3>Normal</h3>
+
+                <div class="number">
+
+                    {{ normal|default(0, true) }}
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>Important</h3>
+
+                <div class="number">
+
+                    {{ important|default(0, true) }}
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>Spam</h3>
+
+                <div class="number">
+
+                    {{ spam|default(0, true) }}
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>Positive</h3>
+
+                <div class="number">
+
+                    {{ positive|default(0, true) }}
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>Negative</h3>
+
+                <div class="number">
+
+                    {{ negative|default(0, true) }}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= ADMIN TOOLS ================= -->
+
+    <div class="section">
+
+        <h2>⚙️ Admin Tools</h2>
+
+        <div class="buttons">
+
+            <a
+                href="{{ url_for('admin_logs') }}"
+                class="btn btn-purple">
+
+                📋 Activity Logs
+
+            </a>
+
+
+            <a
+                href="{{ url_for('export_csv') }}"
+                class="btn btn-blue">
+
+                📊 Export CSV
+
+            </a>
+
+
+            <a
+                href="{{ url_for('backup_database') }}"
+                class="btn btn-green">
+
+                💾 Backup Database
+
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= CONTACT MESSAGES ================= -->
+
+    <div class="section">
+
+        <h2>📩 Contact Messages</h2>
+
+        <input
+            type="text"
+            id="searchInput"
+            class="search-box"
+            placeholder="🔍 Search name, email, message, category...">
+
+
+        <div class="table-wrapper">
+
+            <table id="messageTable">
+
+                <thead>
+
+                    <tr>
+
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Message</th>
+                        <th>Category</th>
+                        <th>Risk Level</th>
+                        <th>Sentiment</th>
+                        <th>AI Analysis</th>
+                        <th>Date & Time</th>
+                        <th>Action</th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    {% for msg in messages|default([], true) %}
+
+                    <tr id="message-row-{{ msg['id'] }}">
+
+                        <td>
+                            {{ msg["id"] }}
+                        </td>
+
+
+                        <td>
+                            {{ msg["name"] }}
+                        </td>
+
+
+                        <td>
+                            {{ msg["email"] }}
+                        </td>
+
+
+                        <td>
+                            {{ msg["message"] }}
+                        </td>
+
+
+                        <td>
+
+                            {% if msg["category"] == "Spam" %}
+
+                                <span class="badge spam">
+                                    Spam
+                                </span>
+
+                            {% elif msg["category"] == "Important" %}
+
+                                <span class="badge important">
+                                    Important
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge normal">
+                                    Normal
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <td>
+
+                            {% if msg["risk_level"] == "High" %}
+
+                                <span class="badge high">
+                                    High
+                                </span>
+
+                            {% elif msg["risk_level"] == "Medium" %}
+
+                                <span class="badge medium">
+                                    Medium
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge low">
+                                    Low
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <td>
+
+                            {% if msg["sentiment"] == "Positive" %}
+
+                                <span class="badge positive">
+                                    Positive
+                                </span>
+
+                            {% elif msg["sentiment"] == "Negative" %}
+
+                                <span class="badge negative">
+                                    Negative
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge neutral">
+                                    Neutral
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <td>
+
+                            {{ msg["analysis_reason"] or "No analysis" }}
+
+                        </td>
+
+
+                        <td>
+
+                            {{ msg["created_at"] }}
+
+                        </td>
+
+
+                        <td>
+
+                            <a
+                                href="{{ url_for('delete_message', message_id=msg['id']) }}"
+                                class="btn btn-red"
+                                onclick="return confirm('Are you sure you want to delete this message?');">
+
+                                Delete
+
+                            </a>
+
+                        </td>
+
+                    </tr>
+
+
+                    {% else %}
+
+                    <tr>
+
+                        <td
+                            colspan="10"
+                            style="text-align:center;">
+
+                            No contact messages found.
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= DATABASE BACKUP ================= -->
+
+    <div class="section">
+
+        <h2>💾 Database Backup & Recovery</h2>
+
+        <div class="restore-box">
+
+            <p>
+                Upload a valid SQLite database file
+                to restore the portfolio database.
+            </p>
+
+
+            <form
+                action="{{ url_for('restore_database') }}"
+                method="POST"
+                enctype="multipart/form-data"
+                onsubmit="return confirmRestore();">
+
+
+                <input
+                    type="file"
+                    name="database_file"
+                    accept=".db"
+                    required>
+
+
+                <br>
+
+
+                <button
+                    type="submit"
+                    class="btn btn-orange">
+
+                    🔄 Restore Database
+
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- FOOTER -->
+
+<footer>
+
+    © 2026 Sakthi Narendran |
+    Personal Portfolio Admin System
+
+</footer>
+
+
+<script>
+
+/* =====================================================
+   SEARCH
+===================================================== */
+
+const searchInput =
+    document.getElementById("searchInput");
+
+
+if (searchInput) {
+
+    searchInput.addEventListener(
+        "keyup",
+        function () {
+
+            const searchValue =
+                this.value.toLowerCase();
+
+
+            const rows =
+                document.querySelectorAll(
+                    "#messageTable tbody tr"
+                );
+
+
+            rows.forEach(function(row) {
+
+                const text =
+                    row.innerText.toLowerCase();
+
+
+                if (text.includes(searchValue)) {
+
+                    row.style.display = "";
+
+                } else {
+
+                    row.style.display = "none";
+
+                }
+
+            });
+
+        }
+    );
+
+}
+
+
+/* =====================================================
+   REAL-TIME NOTIFICATION
+===================================================== */
+
+let knownMessageIds = new Set();
+
+let notificationMessages = [];
+
+let firstNotificationLoad = true;
+
+
+function escapeHTML(value) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return "";
+
+    }
+
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+/* GET NOTIFICATIONS */
+
+async function loadNotifications() {
+
+    try {
+
+        const response =
+            await fetch(
+                "{{ url_for('admin_notifications') }}",
+                {
+                    cache: "no-store"
+                }
+            );
+
+
+        if (!response.ok) {
+
+            return;
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        if (!data.success) {
+
+            return;
+
+        }
+
+
+        const messages =
+            data.messages || [];
+
+
+        let newMessages = [];
+
+
+        messages.forEach(
+            function(message) {
+
+                const id =
+                    Number(message.id);
+
+
+                if (
+                    !knownMessageIds.has(id)
+                ) {
+
+                    if (!firstNotificationLoad) {
+
+                        newMessages.push(message);
+
+                    }
+
+
+                    knownMessageIds.add(id);
+
+                }
+
+            }
+        );
+
+
+        firstNotificationLoad = false;
+
+
+        newMessages.forEach(
+            function(message) {
+
+                notificationMessages.unshift(
+                    message
+                );
+
+            }
+        );
+
+
+        notificationMessages =
+            notificationMessages.slice(
+                0,
+                20
+            );
+
+
+        updateNotificationUI();
+
+
+        if (
+            newMessages.length > 0
+        ) {
+
+            showNewMessageAlert();
+
+            playNotificationSound();
+
+            requestBrowserNotification(
+                newMessages
+            );
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.log(
+            "Notification error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* UPDATE UI */
+
+function updateNotificationUI() {
+
+    const countElement =
+        document.getElementById(
+            "notificationCount"
+        );
+
+
+    const listElement =
+        document.getElementById(
+            "notificationList"
+        );
+
+
+    const count =
+        notificationMessages.length;
+
+
+    if (count > 0) {
+
+        countElement.style.display =
+            "flex";
+
+
+        countElement.innerText =
+            count > 99
+                ? "99+"
+                : count;
+
+    } else {
+
+        countElement.style.display =
+            "none";
+
+    }
+
+
+    if (count === 0) {
+
+        listElement.innerHTML = `
+            <div class="no-notification">
+                No new messages
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    listElement.innerHTML =
+        notificationMessages
+        .map(
+            function(message) {
+
+                return `
+
+                    <div
+                        class="notification-item"
+                        onclick="openMessage(${Number(message.id)})">
+
+                        <strong>
+
+                            📨 New message from
+                            ${escapeHTML(message.name)}
+
+                        </strong>
+
+
+                        <div>
+
+                            ${escapeHTML(
+                                message.message
+                            ).substring(0, 80)}
+
+                        </div>
+
+
+                        <small>
+
+                            ${escapeHTML(
+                                message.created_at
+                            )}
+
+                        </small>
+
+                    </div>
+
+                `;
+
+            }
+        )
+        .join("");
+
+}
+
+
+/* ALERT */
+
+function showNewMessageAlert() {
+
+    const button =
+        document.getElementById(
+            "notificationButton"
+        );
+
+
+    button.classList.add(
+        "new-notification"
+    );
+
+
+    setTimeout(
+        function() {
+
+            button.classList.remove(
+                "new-notification"
+            );
+
+        },
+        1200
+    );
+
+}
+
+
+/* SOUND */
+
+function playNotificationSound() {
+
+    try {
+
+        const AudioContext =
+            window.AudioContext ||
+            window.webkitAudioContext;
+
+
+        if (!AudioContext) {
+
+            return;
+
+        }
+
+
+        const audioContext =
+            new AudioContext();
+
+
+        const oscillator =
+            audioContext.createOscillator();
+
+
+        const gain =
+            audioContext.createGain();
+
+
+        oscillator.connect(gain);
+
+        gain.connect(
+            audioContext.destination
+        );
+
+
+        oscillator.frequency.value =
+            800;
+
+
+        gain.gain.value =
+            0.08;
+
+
+        oscillator.start();
+
+
+        oscillator.stop(
+            audioContext.currentTime +
+            0.15
+        );
+
+    }
+
+    catch (error) {
+
+        console.log(
+            "Sound unavailable"
+        );
+
+    }
+
+}
+
+
+/* BROWSER NOTIFICATION */
+
+function requestBrowserNotification(
+    messages
+) {
+
+    if (
+        !("Notification" in window)
+    ) {
+
+        return;
+
+    }
+
+
+    if (
+        Notification.permission ===
+        "default"
+    ) {
+
+        Notification.requestPermission();
+
+        return;
+
+    }
+
+
+    if (
+        Notification.permission ===
+        "granted"
+    ) {
+
+        const first =
+            messages[0];
+
+
+        new Notification(
+            "New Portfolio Message",
+            {
+                body:
+                    "New message from " +
+                    first.name
+            }
+        );
+
+    }
+
+}
+
+
+/* OPEN MESSAGE */
+
+function openMessage(messageId) {
+
+    const row =
+        document.getElementById(
+            "message-row-" +
+            messageId
+        );
+
+
+    if (row) {
+
+        row.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+        });
+
+
+        row.style.background =
+            "#fff3cd";
+
+
+        setTimeout(
+            function() {
+
+                row.style.background = "";
+
+            },
+            2500
+        );
+
+    }
+
+
+    toggleNotifications();
+
+}
+
+
+/* TOGGLE */
+
+function toggleNotifications() {
+
+    const panel =
+        document.getElementById(
+            "notificationPanel"
+        );
+
+
+    if (
+        panel.style.display ===
+        "block"
+    ) {
+
+        panel.style.display =
+            "none";
+
+    } else {
+
+        panel.style.display =
+            "block";
+
+    }
+
+}
+
+
+/* CLEAR */
+
+function clearNotifications() {
+
+    notificationMessages = [];
+
+    updateNotificationUI();
+
+}
+
+
+/* OUTSIDE CLICK */
+
+document.addEventListener(
+    "click",
+    function(event) {
+
+        const wrapper =
+            document.querySelector(
+                ".notification-wrapper"
+            );
+
+
+        const panel =
+            document.getElementById(
+                "notificationPanel"
+            );
+
+
+        if (
+            wrapper &&
+            !wrapper.contains(event.target)
+        ) {
+
+            panel.style.display =
+                "none";
+
+        }
+
+    }
+);
+
+
+/* RESTORE */
+
+function confirmRestore() {
+
+    return confirm(
+        "WARNING!\n\n" +
+        "Restoring the database may replace " +
+        "your current data.\n\n" +
+        "Are you sure you want to continue?"
+    );
+
+}
+
+
+/* START NOTIFICATION */
+
+loadNotifications();
+
+setInterval(
+    loadNotifications,
+    5000
+);
+
+</script>
+
+</body>
+</html>
