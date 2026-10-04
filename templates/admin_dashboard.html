@@ -1355,7 +1355,7 @@ async function loadNotifications() {
 
         const response =
             await fetch(
-                "{{ url_for('admin_notifications') }}",
+                "{{ url_for('notifications_api') }}",
                 {
                     cache: "no-store"
                 }
