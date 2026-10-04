@@ -21,86 +21,90 @@ from flask import (
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
-# ============================================================
-# FLASK APP
-# ============================================================
+# =========================================================
+# APP CONFIGURATION
+# =========================================================
 
 app = Flask(__name__)
 
-app.secret_key = "sakthi_portfolio_secure_secret_key_2026"
-
-
-# ============================================================
-# DATABASE SETTINGS
-# ============================================================
+# IMPORTANT:
+# Set PORTFOLIO_SECRET_KEY in your computer environment.
+app.secret_key = os.environ.get(
+    "PORTFOLIO_SECRET_KEY",
+    "development-only-change-this-secret"
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-DATABASE = os.path.join(
-    BASE_DIR,
-    "portfolio.db"
-)
+DATABASE = os.path.join(BASE_DIR, "portfolio.db")
 
 BACKUP_FOLDER = os.path.join(
     BASE_DIR,
     "database_backups"
 )
 
-os.makedirs(
-    BACKUP_FOLDER,
-    exist_ok=True
+os.makedirs(BACKUP_FOLDER, exist_ok=True)
+
+
+# =========================================================
+# ADMIN CONFIGURATION
+# =========================================================
+
+ADMIN_USERNAME = os.environ.get(
+    "ADMIN_USERNAME",
+    "admin"
 )
 
-
-# ============================================================
-# ADMIN SETTINGS
-# ============================================================
-
-ADMIN_USERNAME = "admin"
-
-ADMIN_PASSWORD = "Admin@123"
+ADMIN_PASSWORD = os.environ.get(
+    "ADMIN_PASSWORD",
+    "Admin@123"
+)
 
 ADMIN_ROLE = "Super Admin"
 
 
-# ============================================================
+# =========================================================
 # SECURITY SETTINGS
-# ============================================================
+# =========================================================
 
 MAX_LOGIN_ATTEMPTS = 5
-
 LOCKOUT_MINUTES = 5
 
 MAX_CONTACT_MESSAGES = 3
-
 CONTACT_TIME_WINDOW = 60
 
 
 failed_login_attempts = {}
-
 contact_rate_limit = {}
 
 
-# ============================================================
-# TIME FUNCTION
-# ============================================================
+# =========================================================
+# INDIA TIME
+# =========================================================
 
-def get_india_time():
+def india_time():
+    """
+    Returns current India Standard Time.
+    UTC + 5:30
+    """
 
     utc_now = datetime.now(timezone.utc)
 
-    india_time = utc_now + timedelta(hours=5, minutes=30)
+    india_now = utc_now + timedelta(
+        hours=5,
+        minutes=30
+    )
 
-    return india_time.strftime(
+    return india_now.strftime(
         "%Y-%m-%d %H:%M:%S"
     )
 
 
-# ============================================================
+# =========================================================
 # DATABASE CONNECTION
-# ============================================================
+# =========================================================
 
-def get_db():
+def get_db_connection():
 
     conn = sqlite3.connect(
         DATABASE
@@ -111,20 +115,19 @@ def get_db():
     return conn
 
 
-# ============================================================
+# =========================================================
 # CREATE DATABASE
-# ============================================================
+# =========================================================
 
 def create_database():
 
-    conn = get_db()
+    conn = get_db_connection()
 
     cursor = conn.cursor()
 
-
-    # --------------------------------------------------------
-    # MESSAGES TABLE
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Messages table
+    # -----------------------------------------------------
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS messages (
@@ -137,7 +140,7 @@ def create_database():
 
             message TEXT NOT NULL,
 
-pu            created_at TEXT,
+            created_at TEXT,
 
             category TEXT DEFAULT 'Normal',
 
@@ -146,14 +149,12 @@ pu            created_at TEXT,
             sentiment TEXT DEFAULT 'Neutral',
 
             analysis_reason TEXT
-
         )
     """)
 
-
-    # --------------------------------------------------------
-    # ACTIVITY LOGS
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Activity logs table
+    # -----------------------------------------------------
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS activity_logs (
@@ -163,14 +164,12 @@ pu            created_at TEXT,
             action TEXT NOT NULL,
 
             created_at TEXT
-
         )
     """)
 
-
-    # --------------------------------------------------------
-    # CHECK OLD DATABASE COLUMNS
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Check existing message columns
+    # -----------------------------------------------------
 
     cursor.execute(
         "PRAGMA table_info(messages)"
@@ -181,138 +180,105 @@ pu            created_at TEXT,
         for row in cursor.fetchall()
     ]
 
+    required_columns = {
 
-    if "created_at" not in columns:
+        "created_at": "TEXT",
 
-        cursor.execute("""
-            ALTER TABLE messages
-            ADD COLUMN created_at TEXT
-        """)
+        "category": "TEXT DEFAULT 'Normal'",
 
+        "risk_level": "TEXT DEFAULT 'Low'",
 
-    if "category" not in columns:
+        "sentiment": "TEXT DEFAULT 'Neutral'",
 
-        cursor.execute("""
-            ALTER TABLE messages
-            ADD COLUMN category TEXT DEFAULT 'Normal'
-        """)
+        "analysis_reason": "TEXT"
+    }
 
+    for column, definition in required_columns.items():
 
-    if "risk_level" not in columns:
+        if column not in columns:
 
-        cursor.execute("""
-            ALTER TABLE messages
-            ADD COLUMN risk_level TEXT DEFAULT 'Low'
-        """)
+            cursor.execute(
+                f"ALTER TABLE messages ADD COLUMN {column} {definition}"
+            )
 
-
-    if "sentiment" not in columns:
-
-        cursor.execute("""
-            ALTER TABLE messages
-            ADD COLUMN sentiment TEXT DEFAULT 'Neutral'
-        """)
-
-
-    if "analysis_reason" not in columns:
-
-        cursor.execute("""
-            ALTER TABLE messages
-            ADD COLUMN analysis_reason TEXT
-        """)
-
-
-    # --------------------------------------------------------
-    # UPDATE EMPTY VALUES
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Update missing values
+    # -----------------------------------------------------
 
     cursor.execute("""
         UPDATE messages
+
         SET created_at = ?
+
         WHERE created_at IS NULL
-        OR created_at = ''
-    """, (
-        get_india_time(),
-    ))
-
+    """, (india_time(),))
 
     cursor.execute("""
         UPDATE messages
+
         SET category = 'Normal'
+
         WHERE category IS NULL
-        OR category = ''
     """)
-
 
     cursor.execute("""
         UPDATE messages
+
         SET risk_level = 'Low'
-        WHERE risk_level IS NULL
-        OR risk_level = ''
-    """)
 
+        WHERE risk_level IS NULL
+    """)
 
     cursor.execute("""
         UPDATE messages
-        SET sentiment = 'Neutral'
-        WHERE sentiment IS NULL
-        OR sentiment = ''
-    """)
 
+        SET sentiment = 'Neutral'
+
+        WHERE sentiment IS NULL
+    """)
 
     conn.commit()
 
     conn.close()
 
 
-# ============================================================
+# =========================================================
 # ACTIVITY LOG
-# ============================================================
+# =========================================================
 
 def log_activity(action):
 
-    try:
+    conn = get_db_connection()
 
-        conn = get_db()
-
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            INSERT INTO activity_logs
-            (
-                action,
-                created_at
-            )
-            VALUES (?, ?)
-        """, (
+    conn.execute("""
+        INSERT INTO activity_logs
+        (
             action,
-            get_india_time()
-        ))
-
-        conn.commit()
-
-        conn.close()
-
-    except Exception as error:
-
-        print(
-            "Activity log error:",
-            error
+            created_at
         )
 
+        VALUES (?, ?)
+    """, (
+        action,
+        india_time()
+    ))
 
-# ============================================================
-# AI MESSAGE ANALYSIS
-# ============================================================
+    conn.commit()
+
+    conn.close()
+
+
+# =========================================================
+# AI-STYLE MESSAGE ANALYSIS
+# =========================================================
 
 def analyze_message(message):
 
     text = message.lower()
 
-
-    # --------------------------------------------------------
-    # SPAM KEYWORDS
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Spam keywords
+    # -----------------------------------------------------
 
     spam_keywords = [
 
@@ -334,13 +300,11 @@ def analyze_message(message):
         "congratulations you won",
         "100% profit",
         "earn money fast"
-
     ]
 
-
-    # --------------------------------------------------------
-    # IMPORTANT KEYWORDS
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Important keywords
+    # -----------------------------------------------------
 
     important_keywords = [
 
@@ -356,13 +320,11 @@ def analyze_message(message):
         "meeting",
         "opportunity",
         "work"
-
     ]
 
-
-    # --------------------------------------------------------
-    # POSITIVE WORDS
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Positive keywords
+    # -----------------------------------------------------
 
     positive_words = [
 
@@ -378,13 +340,11 @@ def analyze_message(message):
         "love",
         "appreciate",
         "congratulations"
-
     ]
 
-
-    # --------------------------------------------------------
-    # NEGATIVE WORDS
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Negative keywords
+    # -----------------------------------------------------
 
     negative_words = [
 
@@ -403,9 +363,11 @@ def analyze_message(message):
         "failed",
         "terrible",
         "disappointed"
-
     ]
 
+    # -----------------------------------------------------
+    # Matching
+    # -----------------------------------------------------
 
     spam_matches = [
         word
@@ -413,13 +375,11 @@ def analyze_message(message):
         if word in text
     ]
 
-
     important_matches = [
         word
         for word in important_keywords
         if word in text
     ]
-
 
     positive_matches = [
         word
@@ -427,17 +387,15 @@ def analyze_message(message):
         if word in text
     ]
 
-
     negative_matches = [
         word
         for word in negative_words
         if word in text
     ]
 
-
-    # --------------------------------------------------------
-    # SENTIMENT
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Sentiment
+    # -----------------------------------------------------
 
     if len(positive_matches) > len(negative_matches):
 
@@ -451,10 +409,9 @@ def analyze_message(message):
 
         sentiment = "Neutral"
 
-
-    # --------------------------------------------------------
-    # CATEGORY & RISK
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Category + Risk
+    # -----------------------------------------------------
 
     if len(spam_matches) >= 2:
 
@@ -462,23 +419,11 @@ def analyze_message(message):
 
         risk_level = "High"
 
-        reason = (
-            "Multiple spam-related keywords detected: "
-            + ", ".join(spam_matches)
-        )
-
-
     elif len(spam_matches) == 1:
 
         category = "Spam"
 
         risk_level = "Medium"
-
-        reason = (
-            "Spam-related keyword detected: "
-            + spam_matches[0]
-        )
-
 
     elif len(important_matches) >= 2:
 
@@ -486,23 +431,11 @@ def analyze_message(message):
 
         risk_level = "Low"
 
-        reason = (
-            "Multiple important keywords detected: "
-            + ", ".join(important_matches)
-        )
-
-
     elif len(important_matches) == 1:
 
         category = "Important"
 
         risk_level = "Low"
-
-        reason = (
-            "Important keyword detected: "
-            + important_matches[0]
-        )
-
 
     elif len(negative_matches) >= 2:
 
@@ -510,45 +443,85 @@ def analyze_message(message):
 
         risk_level = "Medium"
 
-        reason = (
-            "Negative or complaint-related content detected."
-        )
-
-
     else:
 
         category = "Normal"
 
         risk_level = "Low"
 
-        reason = (
-            "No major spam or high-risk pattern detected."
+    # -----------------------------------------------------
+    # Analysis reason
+    # -----------------------------------------------------
+
+    reasons = []
+
+    if spam_matches:
+
+        reasons.append(
+            "Spam keywords: "
+            + ", ".join(spam_matches)
         )
 
+    if important_matches:
+
+        reasons.append(
+            "Important keywords: "
+            + ", ".join(important_matches)
+        )
+
+    if positive_matches:
+
+        reasons.append(
+            "Positive sentiment detected"
+        )
+
+    if negative_matches:
+
+        reasons.append(
+            "Negative sentiment detected"
+        )
+
+    if not reasons:
+
+        reasons.append(
+            "No suspicious keywords detected"
+        )
+
+    analysis_reason = " | ".join(reasons)
 
     return (
         category,
         risk_level,
         sentiment,
-        reason
+        analysis_reason
     )
 
 
-# ============================================================
-# ADMIN LOGIN CHECK
-# ============================================================
+# =========================================================
+# ADMIN CHECK
+# =========================================================
 
 def admin_required():
 
-    return (
-        "admin_logged_in" in session
-        and session.get("admin_role") == ADMIN_ROLE
-    )
+    if not session.get(
+        "admin_logged_in",
+        False
+    ):
+
+        return False
+
+    if session.get(
+        "admin_role"
+    ) != ADMIN_ROLE:
+
+        return False
+
+    return True
 
 
-# ============================================================
+# =========================================================
 # HOME PAGE
-# ============================================================
+# =========================================================
 
 @app.route("/")
 def home():
@@ -558,9 +531,9 @@ def home():
     )
 
 
-# ============================================================
+# =========================================================
 # CONTACT FORM
-# ============================================================
+# =========================================================
 
 @app.route(
     "/contact",
@@ -573,22 +546,19 @@ def contact():
         ""
     ).strip()
 
-
     email = request.form.get(
         "email",
         ""
     ).strip()
-
 
     message = request.form.get(
         "message",
         ""
     ).strip()
 
-
-    # --------------------------------------------------------
-    # BASIC VALIDATION
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Validation
+    # -----------------------------------------------------
 
     if not name or not email or not message:
 
@@ -601,7 +571,6 @@ def contact():
             url_for("home")
         )
 
-
     if len(name) > 100:
 
         flash(
@@ -612,7 +581,6 @@ def contact():
         return redirect(
             url_for("home")
         )
-
 
     if len(email) > 150:
 
@@ -625,8 +593,7 @@ def contact():
             url_for("home")
         )
 
-
-    if len(message) > 5000:
+    if len(message) > 2000:
 
         flash(
             "Message is too long.",
@@ -637,92 +604,65 @@ def contact():
             url_for("home")
         )
 
+    # -----------------------------------------------------
+    # Rate limiting
+    # -----------------------------------------------------
 
-    # --------------------------------------------------------
-    # RATE LIMIT
-    # --------------------------------------------------------
-
-    ip_address = (
-        request.headers.get(
-            "X-Forwarded-For"
-        )
-        or request.remote_addr
-        or "unknown"
-    )
-
+    ip_address = request.remote_addr or "unknown"
 
     now = datetime.now()
 
+    previous_requests = contact_rate_limit.get(
+        ip_address,
+        []
+    )
 
-    if ip_address in contact_rate_limit:
+    previous_requests = [
 
-        timestamps = contact_rate_limit[
-            ip_address
-        ]
+        request_time
 
-        timestamps = [
+        for request_time in previous_requests
 
-            timestamp
-            for timestamp in timestamps
+        if (
+            now - request_time
+        ).total_seconds() < CONTACT_TIME_WINDOW
+    ]
 
-            if (
-                now - timestamp
-            ).total_seconds()
-            < CONTACT_TIME_WINDOW
+    if len(previous_requests) >= MAX_CONTACT_MESSAGES:
 
-        ]
+        flash(
+            "Too many messages. Please try again later.",
+            "error"
+        )
 
+        return redirect(
+            url_for("home")
+        )
 
-        if len(timestamps) >= MAX_CONTACT_MESSAGES:
+    previous_requests.append(now)
 
-            flash(
-                "Too many messages. Please try again later.",
-                "error"
-            )
+    contact_rate_limit[
+        ip_address
+    ] = previous_requests
 
-            return redirect(
-                url_for("home")
-            )
-
-
-        timestamps.append(now)
-
-        contact_rate_limit[
-            ip_address
-        ] = timestamps
-
-
-    else:
-
-        contact_rate_limit[
-            ip_address
-        ] = [now]
-
-
-    # --------------------------------------------------------
-    # AI ANALYSIS
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # AI analysis
+    # -----------------------------------------------------
 
     (
         category,
         risk_level,
         sentiment,
         analysis_reason
-    ) = analyze_message(
-        message
-    )
+    ) = analyze_message(message)
 
+    # -----------------------------------------------------
+    # Save message
+    # -----------------------------------------------------
 
-    # --------------------------------------------------------
-    # SAVE MESSAGE
-    # --------------------------------------------------------
+    conn = get_db_connection()
 
-    conn = get_db()
-
-    cursor = conn.cursor()
-
-
-    cursor.execute("""
+    conn.execute("""
         INSERT INTO messages
         (
             name,
@@ -734,51 +674,40 @@ def contact():
             sentiment,
             analysis_reason
         )
+
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-
         name,
         email,
         message,
-        get_india_time(),
+        india_time(),
         category,
         risk_level,
         sentiment,
         analysis_reason
-
     ))
-
-
-    message_id = cursor.lastrowid
-
 
     conn.commit()
 
     conn.close()
 
+    log_activity(
+        f"New Contact Message - {name}"
+    )
 
     flash(
-        "Message sent successfully!",
+        "Your message has been sent successfully!",
         "success"
     )
-
-
-    print(
-        "New message:",
-        message_id,
-        category,
-        risk_level
-    )
-
 
     return redirect(
         url_for("home")
     )
 
 
-# ============================================================
-# ADMIN LOGIN PAGE
-# ============================================================
+# =========================================================
+# ADMIN LOGIN
+# =========================================================
 
 @app.route(
     "/admin/login",
@@ -786,200 +715,162 @@ def contact():
 )
 def admin_login():
 
-    if request.method == "GET":
-
-        return render_template(
-            "admin_login.html"
-        )
-
-
-    username = request.form.get(
-        "username",
-        ""
-    ).strip()
-
-
-    password = request.form.get(
-        "password",
-        ""
-    )
-
-
-    ip_address = (
-        request.remote_addr
-        or "unknown"
-    )
-
-
-    # --------------------------------------------------------
-    # CHECK LOCKOUT
-    # --------------------------------------------------------
-
-    if ip_address in failed_login_attempts:
-
-        data = failed_login_attempts[
-            ip_address
-        ]
-
-
-        if data.get("locked_until"):
-
-            if datetime.now() < data["locked_until"]:
-
-                remaining = (
-                    data["locked_until"]
-                    - datetime.now()
-                ).seconds // 60 + 1
-
-
-                log_activity(
-                    "Admin Login Failed - Account Locked"
-                )
-
-
-                return render_template(
-                    "admin_login.html",
-                    error=(
-                        "Account temporarily locked. "
-                        f"Try again in {remaining} minute(s)."
-                    )
-                )
-
-
-            else:
-
-                failed_login_attempts[
-                    ip_address
-                ] = {
-                    "attempts": 0,
-                    "locked_until": None
-                }
-
-
-    # --------------------------------------------------------
-    # VERIFY LOGIN
-    # --------------------------------------------------------
-
-    valid_username = (
-        username == ADMIN_USERNAME
-    )
-
-
-    valid_password = check_password_hash(
-        generate_password_hash(
-            ADMIN_PASSWORD
-        ),
-        password
-    )
-
-
-    if valid_username and valid_password:
-
-        session.clear()
-
-        session["admin_logged_in"] = True
-
-        session["admin_username"] = (
-            ADMIN_USERNAME
-        )
-
-        session["admin_role"] = (
-            ADMIN_ROLE
-        )
-
-
-        failed_login_attempts.pop(
-            ip_address,
-            None
-        )
-
-
-        log_activity(
-            "Admin Login Successful"
-        )
-
+    if admin_required():
 
         return redirect(
             url_for("admin_dashboard")
         )
 
+    if request.method == "POST":
 
-    # --------------------------------------------------------
-    # FAILED LOGIN
-    # --------------------------------------------------------
+        username = request.form.get(
+            "username",
+            ""
+        ).strip()
 
-    if ip_address not in failed_login_attempts:
+        password = request.form.get(
+            "password",
+            ""
+        )
+
+        client_ip = request.remote_addr or "unknown"
+
+        # -------------------------------------------------
+        # Lockout check
+        # -------------------------------------------------
+
+        login_info = failed_login_attempts.get(
+            client_ip
+        )
+
+        if login_info:
+
+            attempts = login_info.get(
+                "attempts",
+                0
+            )
+
+            locked_until = login_info.get(
+                "locked_until"
+            )
+
+            if locked_until:
+
+                if datetime.now() < locked_until:
+
+                    log_activity(
+                        "Login Blocked - Lockout"
+                    )
+
+                    flash(
+                        "Too many failed attempts. Please try again later.",
+                        "error"
+                    )
+
+                    return render_template(
+                        "admin_login.html"
+                    )
+
+                else:
+
+                    failed_login_attempts.pop(
+                        client_ip,
+                        None
+                    )
+
+        # -------------------------------------------------
+        # Login validation
+        # -------------------------------------------------
+
+        if (
+            username == ADMIN_USERNAME
+            and
+            password == ADMIN_PASSWORD
+        ):
+
+            session["admin_logged_in"] = True
+
+            session["admin_username"] = (
+                ADMIN_USERNAME
+            )
+
+            session["admin_role"] = (
+                ADMIN_ROLE
+            )
+
+            failed_login_attempts.pop(
+                client_ip,
+                None
+            )
+
+            log_activity(
+                "Admin Login Successful"
+            )
+
+            return redirect(
+                url_for("admin_dashboard")
+            )
+
+        # -------------------------------------------------
+        # Failed login
+        # -------------------------------------------------
+
+        login_info = failed_login_attempts.get(
+            client_ip,
+            {
+                "attempts": 0,
+                "locked_until": None
+            }
+        )
+
+        login_info["attempts"] += 1
+
+        if login_info["attempts"] >= MAX_LOGIN_ATTEMPTS:
+
+            login_info["locked_until"] = (
+                datetime.now()
+                + timedelta(
+                    minutes=LOCKOUT_MINUTES
+                )
+            )
+
+            log_activity(
+                "Admin Login Failed - Account Locked"
+            )
+
+            flash(
+                "Too many failed attempts. Login temporarily locked.",
+                "error"
+            )
+
+        else:
+
+            remaining = (
+                MAX_LOGIN_ATTEMPTS
+                - login_info["attempts"]
+            )
+
+            log_activity(
+                "Admin Login Failed"
+            )
+
+            flash(
+                f"Invalid login. {remaining} attempts remaining.",
+                "error"
+            )
 
         failed_login_attempts[
-            ip_address
-        ] = {
-
-            "attempts": 0,
-
-            "locked_until": None
-
-        }
-
-
-    failed_login_attempts[
-        ip_address
-    ]["attempts"] += 1
-
-
-    attempts = failed_login_attempts[
-        ip_address
-    ]["attempts"]
-
-
-    if attempts >= MAX_LOGIN_ATTEMPTS:
-
-        failed_login_attempts[
-            ip_address
-        ]["locked_until"] = (
-            datetime.now()
-            + timedelta(
-                minutes=LOCKOUT_MINUTES
-            )
-        )
-
-
-        log_activity(
-            "Admin Login Failed - Account Locked"
-        )
-
-
-        return render_template(
-            "admin_login.html",
-            error=(
-                "Too many failed attempts. "
-                "Account locked for 5 minutes."
-            )
-        )
-
-
-    log_activity(
-        "Admin Login Failed"
-    )
-
-
-    remaining_attempts = (
-        MAX_LOGIN_ATTEMPTS
-        - attempts
-    )
-
+            client_ip
+        ] = login_info
 
     return render_template(
-        "admin_login.html",
-        error=(
-            "Invalid username or password. "
-            f"{remaining_attempts} attempt(s) remaining."
-        )
+        "admin_login.html"
     )
 
 
-# ============================================================
+# =========================================================
 # ADMIN DASHBOARD
-# ============================================================
+# =========================================================
 
 @app.route("/admin/dashboard")
 def admin_dashboard():
@@ -990,261 +881,146 @@ def admin_dashboard():
             url_for("admin_login")
         )
 
+    conn = get_db_connection()
 
-    conn = get_db()
+    messages = conn.execute("""
+        SELECT *
 
-    cursor = conn.cursor()
+        FROM messages
 
+        ORDER BY id DESC
+    """).fetchall()
 
-    # --------------------------------------------------------
-    # TOTAL MESSAGES
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Statistics
+    # -----------------------------------------------------
 
-    cursor.execute(
-        "SELECT COUNT(*) AS count FROM messages"
-    )
+    total = conn.execute("""
+        SELECT COUNT(*) AS count
+        FROM messages
+    """).fetchone()["count"]
 
-    total = cursor.fetchone()["count"]
-
-
-    # --------------------------------------------------------
-    # AI STATISTICS
-    # --------------------------------------------------------
-
-    cursor.execute("""
+    normal = conn.execute("""
         SELECT COUNT(*) AS count
         FROM messages
         WHERE category = 'Normal'
-    """)
+    """).fetchone()["count"]
 
-    normal_messages = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
+    important = conn.execute("""
         SELECT COUNT(*) AS count
         FROM messages
         WHERE category = 'Important'
-    """)
+    """).fetchone()["count"]
 
-    important_messages = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
+    spam = conn.execute("""
         SELECT COUNT(*) AS count
         FROM messages
         WHERE category = 'Spam'
-    """)
+    """).fetchone()["count"]
 
-    spam_messages = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
+    high_risk = conn.execute("""
         SELECT COUNT(*) AS count
         FROM messages
         WHERE risk_level = 'High'
-    """)
+    """).fetchone()["count"]
 
-    high_risk_messages = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
+    positive = conn.execute("""
         SELECT COUNT(*) AS count
         FROM messages
         WHERE sentiment = 'Positive'
-    """)
+    """).fetchone()["count"]
 
-    positive_messages = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
+    negative = conn.execute("""
         SELECT COUNT(*) AS count
         FROM messages
         WHERE sentiment = 'Negative'
-    """)
+    """).fetchone()["count"]
 
-    negative_messages = cursor.fetchone()["count"]
-
-
-    # --------------------------------------------------------
-    # LOGIN STATISTICS
-    # --------------------------------------------------------
-
-    cursor.execute("""
+    successful_logins = conn.execute("""
         SELECT COUNT(*) AS count
         FROM activity_logs
-        WHERE action = 'Admin Login Successful'
-    """)
+        WHERE action LIKE '%Login Successful%'
+    """).fetchone()["count"]
 
-    successful_logins = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
+    failed_logins = conn.execute("""
         SELECT COUNT(*) AS count
         FROM activity_logs
-        WHERE action LIKE 'Admin Login Failed%'
-    """)
+        WHERE action LIKE '%Login Failed%'
+    """).fetchone()["count"]
 
-    failed_logins = cursor.fetchone()["count"]
-
-
-    # --------------------------------------------------------
-    # DELETE STATISTICS
-    # --------------------------------------------------------
-
-    cursor.execute("""
+    deleted_messages = conn.execute("""
         SELECT COUNT(*) AS count
         FROM activity_logs
-        WHERE action LIKE 'Message Deleted%'
-    """)
+        WHERE action LIKE '%Deleted%'
+    """).fetchone()["count"]
 
-    deleted_messages = cursor.fetchone()["count"]
-
-
-    # --------------------------------------------------------
-    # SECURITY EVENTS
-    # --------------------------------------------------------
-
-    cursor.execute("""
+    total_security_events = conn.execute("""
         SELECT COUNT(*) AS count
         FROM activity_logs
-    """)
+    """).fetchone()["count"]
 
-    total_security_events = cursor.fetchone()["count"]
-
-
-    # --------------------------------------------------------
-    # DATABASE RECORDS
-    # --------------------------------------------------------
-
-    database_records = (
-        total
-        + total_security_events
-    )
-
-
-    # --------------------------------------------------------
-    # LAST ACTIVITY
-    # --------------------------------------------------------
-
-    cursor.execute("""
+    last_activity = conn.execute("""
         SELECT created_at
+
         FROM activity_logs
+
         ORDER BY id DESC
+
         LIMIT 1
-    """)
-
-    last_activity_row = cursor.fetchone()
-
-
-    if last_activity_row:
-
-        last_activity = (
-            last_activity_row["created_at"]
-        )
-
-    else:
-
-        last_activity = "No activity"
-
-
-    # --------------------------------------------------------
-    # GET MESSAGES
-    # --------------------------------------------------------
-
-    cursor.execute("""
-        SELECT *
-        FROM messages
-        ORDER BY id DESC
-    """)
-
-    messages = cursor.fetchall()
-
+    """).fetchone()
 
     conn.close()
 
+    last_activity_time = (
+        last_activity["created_at"]
+        if last_activity
+        else "No activity"
+    )
 
-    # --------------------------------------------------------
-    # DATABASE HEALTH
-    # --------------------------------------------------------
+    db_status = (
+        "Online"
+        if os.path.exists(DATABASE)
+        else "Offline"
+    )
 
-    database_status = "Connected"
+    server_status = "Online"
 
-    overall_health = "Healthy"
+    session_status = "Active"
 
-    overall_health_type = "healthy"
+    if high_risk > 0:
 
-
-    try:
-
-        test_conn = get_db()
-
-        test_conn.execute(
-            "SELECT 1"
-        )
-
-        test_conn.close()
-
-    except Exception:
-
-        database_status = "Error"
-
-        overall_health = "Attention Required"
-
-        overall_health_type = "warning"
-
-
-    # --------------------------------------------------------
-    # SECURITY ALERT
-    # --------------------------------------------------------
-
-    if high_risk_messages > 0:
+        overall_health = "Warning"
 
         security_alert = (
-            f"High-risk messages detected: "
-            f"{high_risk_messages}"
+            f"{high_risk} high-risk message(s) detected."
         )
-
-        security_alert_type = "critical"
-
-
-    elif spam_messages > 0:
-
-        security_alert = (
-            f"Spam messages detected: "
-            f"{spam_messages}"
-        )
-
-        security_alert_type = "warning"
-
 
     else:
 
+        overall_health = "Healthy"
+
         security_alert = (
-            "All security systems are operating normally."
+            "No high-risk messages detected."
         )
 
-        security_alert_type = "safe"
-
-
     return render_template(
-
         "admin_dashboard.html",
 
         messages=messages,
 
         total=total,
 
-        normal_messages=normal_messages,
+        normal=normal,
 
-        important_messages=important_messages,
+        important=important,
 
-        spam_messages=spam_messages,
+        spam=spam,
 
-        high_risk_messages=high_risk_messages,
+        high_risk=high_risk,
 
-        positive_messages=positive_messages,
+        positive=positive,
 
-        negative_messages=negative_messages,
+        negative=negative,
 
         successful_logins=successful_logins,
 
@@ -1254,119 +1030,25 @@ def admin_dashboard():
 
         total_security_events=total_security_events,
 
-        database_records=database_records,
+        db_records=total,
 
-        last_activity=last_activity,
+        last_activity=last_activity_time,
 
-        database_status=database_status,
+        db_status=db_status,
 
-        server_status="Online",
+        server_status=server_status,
 
-        admin_session_status="Active",
+        session_status=session_status,
 
         overall_health=overall_health,
 
-        overall_health_type=overall_health_type,
-
-        security_alert=security_alert,
-
-        security_alert_type=security_alert_type
-
+        security_alert=security_alert
     )
 
 
-# ============================================================
-# REAL-TIME NOTIFICATION API
-# ============================================================
-
-@app.route("/admin/notifications")
-def admin_notifications():
-
-    if not admin_required():
-
-        return jsonify({
-            "success": False,
-            "message": "Unauthorized"
-        }), 401
-
-
-    try:
-
-        conn = get_db()
-
-        cursor = conn.cursor()
-
-
-        cursor.execute("""
-            SELECT
-                id,
-                name,
-                email,
-                message,
-                category,
-                risk_level,
-                sentiment,
-                created_at
-            FROM messages
-            ORDER BY id DESC
-            LIMIT 10
-        """)
-
-
-        rows = cursor.fetchall()
-
-        conn.close()
-
-
-        result = []
-
-
-        for row in rows:
-
-            result.append({
-
-                "id": row["id"],
-
-                "name": row["name"],
-
-                "email": row["email"],
-
-                "message": row["message"],
-
-                "category": row["category"],
-
-                "risk_level": row["risk_level"],
-
-                "sentiment": row["sentiment"],
-
-                "created_at": row["created_at"]
-
-            })
-
-
-        return jsonify({
-
-            "success": True,
-
-            "messages": result
-
-        })
-
-
-    except Exception as error:
-
-        return jsonify({
-
-            "success": False,
-
-            "message": str(error)
-
-        }), 500
-
-
-# ============================================================
+# =========================================================
 # ADMIN LOGS
-# ============================================================
+# =========================================================
 
 @app.route("/admin/logs")
 def admin_logs():
@@ -1377,24 +1059,17 @@ def admin_logs():
             url_for("admin_login")
         )
 
+    conn = get_db_connection()
 
-    conn = get_db()
-
-    cursor = conn.cursor()
-
-
-    cursor.execute("""
+    logs = conn.execute("""
         SELECT *
+
         FROM activity_logs
+
         ORDER BY id DESC
-    """)
-
-
-    logs = cursor.fetchall()
-
+    """).fetchall()
 
     conn.close()
-
 
     return render_template(
         "admin_logs.html",
@@ -1402,12 +1077,13 @@ def admin_logs():
     )
 
 
-# ============================================================
+# =========================================================
 # DELETE MESSAGE
-# ============================================================
+# =========================================================
 
 @app.route(
-    "/admin/delete/<int:message_id>"
+    "/admin/delete/<int:message_id>",
+    methods=["POST"]
 )
 def delete_message(message_id):
 
@@ -1417,38 +1093,56 @@ def delete_message(message_id):
             url_for("admin_login")
         )
 
+    conn = get_db_connection()
 
-    conn = get_db()
+    message = conn.execute("""
+        SELECT name
 
-    cursor = conn.cursor()
+        FROM messages
 
-
-    cursor.execute("""
-        DELETE FROM messages
         WHERE id = ?
     """, (
         message_id,
-    ))
+    )).fetchone()
 
+    if message:
 
-    conn.commit()
+        conn.execute("""
+            DELETE FROM messages
+
+            WHERE id = ?
+        """, (
+            message_id,
+        ))
+
+        conn.commit()
+
+        log_activity(
+            f"Deleted Message - {message['name']}"
+        )
+
+        flash(
+            "Message deleted successfully.",
+            "success"
+        )
+
+    else:
+
+        flash(
+            "Message not found.",
+            "error"
+        )
 
     conn.close()
-
-
-    log_activity(
-        f"Message Deleted - ID {message_id}"
-    )
-
 
     return redirect(
         url_for("admin_dashboard")
     )
 
 
-# ============================================================
+# =========================================================
 # CSV EXPORT
-# ============================================================
+# =========================================================
 
 @app.route("/admin/export")
 def export_csv():
@@ -1459,42 +1153,23 @@ def export_csv():
             url_for("admin_login")
         )
 
+    conn = get_db_connection()
 
-    conn = get_db()
+    messages = conn.execute("""
+        SELECT *
 
-    cursor = conn.cursor()
-
-
-    cursor.execute("""
-        SELECT
-            id,
-            name,
-            email,
-            message,
-            created_at,
-            category,
-            risk_level,
-            sentiment,
-            analysis_reason
         FROM messages
+
         ORDER BY id DESC
-    """)
-
-
-    rows = cursor.fetchall()
+    """).fetchall()
 
     conn.close()
 
-
     output = io.StringIO()
 
-    writer = csv.writer(
-        output
-    )
-
+    writer = csv.writer(output)
 
     writer.writerow([
-
         "ID",
         "Name",
         "Email",
@@ -1504,51 +1179,39 @@ def export_csv():
         "Risk Level",
         "Sentiment",
         "Analysis Reason"
-
     ])
 
-
-    for row in rows:
+    for message in messages:
 
         writer.writerow([
-
-            row["id"],
-            row["name"],
-            row["email"],
-            row["message"],
-            row["created_at"],
-            row["category"],
-            row["risk_level"],
-            row["sentiment"],
-            row["analysis_reason"]
-
+            message["id"],
+            message["name"],
+            message["email"],
+            message["message"],
+            message["created_at"],
+            message["category"],
+            message["risk_level"],
+            message["sentiment"],
+            message["analysis_reason"]
         ])
 
-
     log_activity(
-        "Contact Messages CSV Exported"
+        "CSV Export Generated"
     )
-
 
     return Response(
-
         output.getvalue(),
-
         mimetype="text/csv",
-
         headers={
-
             "Content-Disposition":
-            "attachment; filename=portfolio_messages.csv"
-
+                "attachment; filename=portfolio_messages.csv"
         }
-
     )
 
 
-# ============================================================
+# =========================================================
 # DATABASE BACKUP
-# ============================================================
+# =========================================================
 
 @app.route("/admin/backup")
 def backup_database():
@@ -1559,70 +1222,49 @@ def backup_database():
             url_for("admin_login")
         )
 
-
-    timestamp = datetime.now().strftime(
-        "%Y%m%d_%H%M%S"
-    )
-
-
-    backup_filename = (
-        f"portfolio_backup_{timestamp}.db"
-    )
-
-
-    backup_path = os.path.join(
-
-        BACKUP_FOLDER,
-
-        backup_filename
-
-    )
-
-
-    try:
-
-        shutil.copy2(
-
-            DATABASE,
-
-            backup_path
-
-        )
-
-
-        log_activity(
-            "Database Backup Created - "
-            + backup_filename
-        )
-
-
-        return send_file(
-
-            backup_path,
-
-            as_attachment=True,
-
-            download_name=backup_filename
-
-        )
-
-
-    except Exception as error:
+    if not os.path.exists(DATABASE):
 
         flash(
-            f"Backup failed: {error}",
+            "Database file not found.",
             "error"
         )
-
 
         return redirect(
             url_for("admin_dashboard")
         )
 
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
 
-# ============================================================
+    backup_filename = (
+        f"portfolio_backup_{timestamp}.db"
+    )
+
+    backup_path = os.path.join(
+        BACKUP_FOLDER,
+        backup_filename
+    )
+
+    shutil.copy2(
+        DATABASE,
+        backup_path
+    )
+
+    log_activity(
+        f"Database Backup Created - {backup_filename}"
+    )
+
+    return send_file(
+        backup_path,
+        as_attachment=True,
+        download_name=backup_filename
+    )
+
+
+# =========================================================
 # DATABASE RESTORE
-# ============================================================
+# =========================================================
 
 @app.route(
     "/admin/restore",
@@ -1636,16 +1278,14 @@ def restore_database():
             url_for("admin_login")
         )
 
-
-    backup_file = request.files.get(
-        "backup_file"
+    uploaded_file = request.files.get(
+        "database_file"
     )
 
-
-    if not backup_file:
+    if not uploaded_file:
 
         flash(
-            "Please select a database backup file.",
+            "Please select a database file.",
             "error"
         )
 
@@ -1653,9 +1293,7 @@ def restore_database():
             url_for("admin_dashboard")
         )
 
-
-    filename = backup_file.filename or ""
-
+    filename = uploaded_file.filename or ""
 
     if not filename.lower().endswith(".db"):
 
@@ -1668,130 +1306,113 @@ def restore_database():
             url_for("admin_dashboard")
         )
 
+    # -----------------------------------------------------
+    # Safety backup
+    # -----------------------------------------------------
 
-    timestamp = datetime.now().strftime(
-        "%Y%m%d_%H%M%S"
+    if os.path.exists(DATABASE):
+
+        timestamp = datetime.now().strftime(
+            "%Y%m%d_%H%M%S"
+        )
+
+        safety_backup = os.path.join(
+            BACKUP_FOLDER,
+            f"before_restore_{timestamp}.db"
+        )
+
+        shutil.copy2(
+            DATABASE,
+            safety_backup
+        )
+
+    # -----------------------------------------------------
+    # Temporary upload
+    # -----------------------------------------------------
+
+    temp_path = os.path.join(
+        BASE_DIR,
+        "restore_temp.db"
     )
 
-
-    safety_backup = os.path.join(
-
-        BACKUP_FOLDER,
-
-        f"before_restore_{timestamp}.db"
-
+    uploaded_file.save(
+        temp_path
     )
 
-
-    temporary_restore = os.path.join(
-
-        BACKUP_FOLDER,
-
-        f"restore_temp_{timestamp}.db"
-
-    )
-
+    # -----------------------------------------------------
+    # Integrity check
+    # -----------------------------------------------------
 
     try:
 
-        # ----------------------------------------------------
-        # CREATE SAFETY BACKUP
-        # ----------------------------------------------------
-
-        shutil.copy2(
-
-            DATABASE,
-
-            safety_backup
-
-        )
-
-
-        # ----------------------------------------------------
-        # SAVE UPLOADED FILE TEMPORARILY
-        # ----------------------------------------------------
-
-        backup_file.save(
-            temporary_restore
-        )
-
-
-        # ----------------------------------------------------
-        # VERIFY SQLITE DATABASE
-        # ----------------------------------------------------
-
         test_conn = sqlite3.connect(
-            temporary_restore
+            temp_path
         )
 
-
-        test_conn.execute(
+        result = test_conn.execute(
             "PRAGMA integrity_check"
-        )
-
+        ).fetchone()[0]
 
         test_conn.close()
 
+        if result != "ok":
 
-        # ----------------------------------------------------
-        # REPLACE DATABASE
-        # ----------------------------------------------------
+            os.remove(temp_path)
 
-        shutil.copy2(
-
-            temporary_restore,
-
-            DATABASE
-
-        )
-
-
-        # ----------------------------------------------------
-        # REMOVE TEMP FILE
-        # ----------------------------------------------------
-
-        os.remove(
-            temporary_restore
-        )
-
-
-        log_activity(
-            "Database Restored - "
-            + filename
-        )
-
-
-        flash(
-            "Database restored successfully.",
-            "success"
-        )
-
-
-    except Exception as error:
-
-        if os.path.exists(
-            temporary_restore
-        ):
-
-            os.remove(
-                temporary_restore
+            flash(
+                "Database integrity check failed.",
+                "error"
             )
 
+            return redirect(
+                url_for("admin_dashboard")
+            )
+
+    except Exception:
+
+        if os.path.exists(temp_path):
+
+            os.remove(temp_path)
 
         flash(
-            f"Database restore failed: {error}",
+            "Invalid database file.",
             "error"
         )
 
+        return redirect(
+            url_for("admin_dashboard")
+        )
+
+    # -----------------------------------------------------
+    # Replace database
+    # -----------------------------------------------------
+
+    shutil.copy2(
+        temp_path,
+        DATABASE
+    )
+
+    os.remove(
+        temp_path
+    )
+
+    log_activity(
+        f"Database Restore Completed - {filename}"
+    )
+
+    flash(
+        "Database restored successfully.",
+        "success"
+    )
 
     return redirect(
         url_for("admin_dashboard")
     )
 
 
-# ============================================================
+# =========================================================
 # PDF REPORT
-# ============================================================
+# =========================================================
 
 @app.route("/admin/report")
 def generate_report():
@@ -1802,38 +1423,26 @@ def generate_report():
             url_for("admin_login")
         )
 
-
     try:
 
         from reportlab.lib import colors
 
         from reportlab.lib.pagesizes import A4
 
-        from reportlab.lib.styles import (
-            getSampleStyleSheet
-        )
-
-        from reportlab.lib.units import mm
+        from reportlab.lib.styles import getSampleStyleSheet
 
         from reportlab.platypus import (
-
             SimpleDocTemplate,
-
             Paragraph,
-
             Spacer,
-
             Table,
-
             TableStyle
-
         )
-
 
     except ImportError:
 
         flash(
-            "ReportLab is not installed. Run: pip install reportlab",
+            "ReportLab is not installed.",
             "error"
         )
 
@@ -1841,219 +1450,88 @@ def generate_report():
             url_for("admin_dashboard")
         )
 
+    conn = get_db_connection()
 
-    conn = get_db()
+    messages = conn.execute("""
+        SELECT *
 
-    cursor = conn.cursor()
+        FROM messages
 
+        ORDER BY id DESC
+    """).fetchall()
 
-    # --------------------------------------------------------
-    # MESSAGE STATISTICS
-    # --------------------------------------------------------
-
-    cursor.execute(
-        "SELECT COUNT(*) AS count FROM messages"
-    )
-
-    total = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
+    total = conn.execute("""
         SELECT COUNT(*) AS count
         FROM messages
-        WHERE category = 'Normal'
-    """)
+    """).fetchone()["count"]
 
-    normal = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
-        SELECT COUNT(*) AS count
-        FROM messages
-        WHERE category = 'Important'
-    """)
-
-    important = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
+    spam = conn.execute("""
         SELECT COUNT(*) AS count
         FROM messages
         WHERE category = 'Spam'
-    """)
+    """).fetchone()["count"]
 
-    spam = cursor.fetchone()["count"]
+    important = conn.execute("""
+        SELECT COUNT(*) AS count
+        FROM messages
+        WHERE category = 'Important'
+    """).fetchone()["count"]
 
-
-    cursor.execute("""
+    high_risk = conn.execute("""
         SELECT COUNT(*) AS count
         FROM messages
         WHERE risk_level = 'High'
-    """)
-
-    high_risk = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
-        SELECT COUNT(*) AS count
-        FROM messages
-        WHERE sentiment = 'Positive'
-    """)
-
-    positive = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
-        SELECT COUNT(*) AS count
-        FROM messages
-        WHERE sentiment = 'Negative'
-    """)
-
-    negative = cursor.fetchone()["count"]
-
-
-    # --------------------------------------------------------
-    # SECURITY STATISTICS
-    # --------------------------------------------------------
-
-    cursor.execute("""
-        SELECT COUNT(*) AS count
-        FROM activity_logs
-        WHERE action = 'Admin Login Successful'
-    """)
-
-    successful_logins = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
-        SELECT COUNT(*) AS count
-        FROM activity_logs
-        WHERE action LIKE 'Admin Login Failed%'
-    """)
-
-    failed_logins = cursor.fetchone()["count"]
-
-
-    cursor.execute("""
-        SELECT COUNT(*) AS count
-        FROM activity_logs
-        WHERE action LIKE 'Message Deleted%'
-    """)
-
-    deleted_messages = cursor.fetchone()["count"]
-
-
-    # --------------------------------------------------------
-    # MESSAGE DATA
-    # --------------------------------------------------------
-
-    cursor.execute("""
-        SELECT
-            id,
-            name,
-            email,
-            category,
-            risk_level,
-            sentiment,
-            created_at
-        FROM messages
-        ORDER BY id DESC
-    """)
-
-
-    messages = cursor.fetchall()
-
+    """).fetchone()["count"]
 
     conn.close()
 
-
-    # --------------------------------------------------------
-    # PDF FILE
-    # --------------------------------------------------------
-
-    pdf_buffer = io.BytesIO()
-
-
-    doc = SimpleDocTemplate(
-
-        pdf_buffer,
-
-        pagesize=A4,
-
-        rightMargin=15 * mm,
-
-        leftMargin=15 * mm,
-
-        topMargin=15 * mm,
-
-        bottomMargin=15 * mm
-
+    filename = os.path.join(
+        BASE_DIR,
+        "Sakthi_Narendran_Portfolio_Report.pdf"
     )
 
+    document = SimpleDocTemplate(
+        filename,
+        pagesize=A4
+    )
 
     styles = getSampleStyleSheet()
 
-
     story = []
 
-
-    # --------------------------------------------------------
-    # TITLE
-    # --------------------------------------------------------
-
     story.append(
-
         Paragraph(
-            "Sakthi Narendran - Portfolio Admin Report",
+            "Sakthi Narendran - Portfolio Security Report",
             styles["Title"]
         )
-
     )
 
-
     story.append(
-        Spacer(1, 8)
+        Spacer(
+            1,
+            20
+        )
     )
 
-
     story.append(
-
         Paragraph(
-
-            "Generated: "
-            + get_india_time(),
-
+            f"Generated: {india_time()}",
             styles["Normal"]
-
         )
-
     )
-
 
     story.append(
-        Spacer(1, 15)
-    )
-
-
-    # --------------------------------------------------------
-    # SYSTEM SUMMARY
-    # --------------------------------------------------------
-
-    story.append(
-
-        Paragraph(
-            "System Summary",
-            styles["Heading2"]
+        Spacer(
+            1,
+            15
         )
-
     )
-
 
     summary_data = [
 
-        ["Total Messages", str(total)],
+        ["System Summary", "Value"],
 
-        ["Normal Messages", str(normal)],
+        ["Total Messages", str(total)],
 
         ["Important Messages", str(important)],
 
@@ -2061,37 +1539,33 @@ def generate_report():
 
         ["High Risk Messages", str(high_risk)],
 
-        ["Positive Messages", str(positive)],
+        ["Admin Security", "Enabled"],
 
-        ["Negative Messages", str(negative)],
+        ["Database", "SQLite"],
 
-        ["Successful Logins", str(successful_logins)],
-
-        ["Failed Logins", str(failed_logins)],
-
-        ["Deleted Messages", str(deleted_messages)],
-
+        ["Server", "Flask"]
     ]
-
 
     summary_table = Table(
         summary_data,
-        colWidths=[
-            90 * mm,
-            70 * mm
-        ]
+        colWidths=[250, 200]
     )
 
-
     summary_table.setStyle(
-
         TableStyle([
 
             (
                 "BACKGROUND",
                 (0, 0),
-                (0, -1),
-                colors.lightgrey
+                (-1, 0),
+                colors.grey
+            ),
+
+            (
+                "TEXTCOLOR",
+                (0, 0),
+                (-1, 0),
+                colors.white
             ),
 
             (
@@ -2108,73 +1582,41 @@ def generate_report():
                 (-1, -1),
                 6
             )
-
         ])
-
     )
-
 
     story.append(
         summary_table
     )
 
-
     story.append(
-        Spacer(1, 15)
+        Spacer(
+            1,
+            20
+        )
     )
 
-
-    # --------------------------------------------------------
-    # AI ANALYSIS
-    # --------------------------------------------------------
-
     story.append(
-
         Paragraph(
             "AI Message Analysis",
             styles["Heading2"]
         )
-
     )
 
-
     story.append(
-
-        Paragraph(
-
-            "The system performs rule-based "
-            "message classification using spam, "
-            "important, sentiment and risk patterns.",
-
-            styles["Normal"]
-
+        Spacer(
+            1,
+            10
         )
-
     )
 
-
-    story.append(
-        Spacer(1, 10)
-    )
-
-
-    # --------------------------------------------------------
-    # MESSAGE TABLE
-    # --------------------------------------------------------
-
-    message_data = [
-
-        [
-            "ID",
-            "Name",
-            "Email",
-            "Category",
-            "Risk",
-            "Sentiment"
-        ]
-
-    ]
-
+    message_data = [[
+        "ID",
+        "Name",
+        "Category",
+        "Risk",
+        "Sentiment"
+    ]]
 
     for message in messages:
 
@@ -2182,281 +1624,237 @@ def generate_report():
 
             str(message["id"]),
 
-            str(message["name"])[:18],
+            message["name"][:25],
 
-            str(message["email"])[:25],
+            message["category"],
 
-            str(message["category"]),
+            message["risk_level"],
 
-            str(message["risk_level"]),
-
-            str(message["sentiment"])
-
+            message["sentiment"]
         ])
 
-
-    if len(message_data) > 1:
-
-        message_table = Table(
-
-            message_data,
-
-            repeatRows=1,
-
-            colWidths=[
-
-                12 * mm,
-
-                30 * mm,
-
-                50 * mm,
-
-                30 * mm,
-
-                25 * mm,
-
-                30 * mm
-
-            ]
-
-        )
-
-
-        message_table.setStyle(
-
-            TableStyle([
-
-                (
-                    "BACKGROUND",
-                    (0, 0),
-                    (-1, 0),
-                    colors.HexColor("#111827")
-                ),
-
-                (
-                    "TEXTCOLOR",
-                    (0, 0),
-                    (-1, 0),
-                    colors.white
-                ),
-
-                (
-                    "GRID",
-                    (0, 0),
-                    (-1, -1),
-                    0.5,
-                    colors.grey
-                ),
-
-                (
-                    "PADDING",
-                    (0, 0),
-                    (-1, -1),
-                    5
-                ),
-
-            ])
-
-        )
-
-
-        story.append(
-            message_table
-        )
-
-
-    else:
-
-        story.append(
-
-            Paragraph(
-                "No contact messages available.",
-                styles["Normal"]
-            )
-
-        )
-
-
-    story.append(
-        Spacer(1, 20)
+    message_table = Table(
+        message_data,
+        repeatRows=1
     )
 
+    message_table.setStyle(
+        TableStyle([
 
-    # --------------------------------------------------------
-    # SECURITY FEATURES
-    # --------------------------------------------------------
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, 0),
+                colors.grey
+            ),
+
+            (
+                "TEXTCOLOR",
+                (0, 0),
+                (-1, 0),
+                colors.white
+            ),
+
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey
+            ),
+
+            (
+                "PADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            )
+        ])
+    )
 
     story.append(
+        message_table
+    )
 
+    story.append(
+        Spacer(
+            1,
+            20
+        )
+    )
+
+    story.append(
         Paragraph(
             "Security Protection",
             styles["Heading2"]
         )
-
     )
-
-
-    security_text = """
-
-    Login protection, brute-force protection,
-    account lockout, password hashing,
-    contact-message rate limiting,
-    AI message analysis, activity logging,
-    SQLite database backup and recovery,
-    CSV export and admin access control
-    are implemented in the system.
-
-    """
-
 
     story.append(
-
         Paragraph(
-            security_text,
+            "Admin authentication, login lockout, "
+            "contact rate limiting, activity logging, "
+            "SQLite backup and restore, AI-style message "
+            "classification and risk detection are enabled.",
             styles["Normal"]
         )
-
     )
 
-
-    # --------------------------------------------------------
-    # BUILD PDF
-    # --------------------------------------------------------
-
-    doc.build(
+    document.build(
         story
     )
-
-
-    pdf_buffer.seek(0)
-
 
     log_activity(
         "PDF Report Generated"
     )
 
-
     return send_file(
-
-        pdf_buffer,
-
+        filename,
         as_attachment=True,
-
-        download_name=(
-            "Sakthi_Narendran_Portfolio_Report.pdf"
-        ),
-
-        mimetype="application/pdf"
-
+        download_name="Sakthi_Narendran_Portfolio_Report.pdf"
     )
 
 
-# ============================================================
-# ADMIN LOGOUT
-# ============================================================
+# =========================================================
+# REAL-TIME NOTIFICATIONS API
+# =========================================================
+
+@app.route(
+    "/admin/notifications"
+)
+def admin_notifications():
+
+    if not admin_required():
+
+        return jsonify({
+            "success": False,
+            "message": "Unauthorized"
+        }), 401
+
+    conn = get_db_connection()
+
+    messages = conn.execute("""
+        SELECT
+            id,
+            name,
+            email,
+            message,
+            category,
+            risk_level,
+            sentiment,
+            created_at
+
+        FROM messages
+
+        ORDER BY id DESC
+
+        LIMIT 10
+    """).fetchall()
+
+    conn.close()
+
+    result = []
+
+    for message in messages:
+
+        result.append({
+
+            "id": message["id"],
+
+            "name": message["name"],
+
+            "email": message["email"],
+
+            "message": message["message"],
+
+            "category": message["category"],
+
+            "risk_level": message["risk_level"],
+
+            "sentiment": message["sentiment"],
+
+            "created_at": message["created_at"]
+        })
+
+    return jsonify({
+
+        "success": True,
+
+        "messages": result
+    })
+
+
+# =========================================================
+# LOGOUT
+# =========================================================
 
 @app.route("/admin/logout")
 def admin_logout():
 
-    if "admin_logged_in" in session:
+    if admin_required():
 
         log_activity(
             "Admin Logout"
         )
 
-
     session.clear()
-
 
     return redirect(
         url_for("admin_login")
     )
 
 
-# ============================================================
+# =========================================================
 # ERROR HANDLERS
-# ============================================================
+# =========================================================
 
 @app.errorhandler(404)
 def page_not_found(error):
 
     return """
-
     <h1>404 - Page Not Found</h1>
-
     <p>The requested page does not exist.</p>
-
-    <a href="/">Back to Portfolio</a>
-
     """, 404
 
 
 @app.errorhandler(500)
-def internal_error(error):
+def internal_server_error(error):
 
     return """
-
     <h1>500 - Internal Server Error</h1>
-
-    <p>Something went wrong.</p>
-
-    <a href="/">Back to Portfolio</a>
-
+    <p>Something went wrong on the server.</p>
     """, 500
 
 
-# ============================================================
-# CREATE DATABASE
-# ============================================================
-
-create_database()
-
-
-# ============================================================
-# RUN APPLICATION
-# ============================================================
+# =========================================================
+# START APPLICATION
+# =========================================================
 
 if __name__ == "__main__":
 
-    print(
-        "\n========================================"
-    )
+    create_database()
 
-    print(
-        " Sakthi Narendran Portfolio System"
-    )
-
-    print(
-        "========================================"
-    )
-
-    print(
-        "Server: http://127.0.0.1:5000"
-    )
-
-    print(
-        "Admin:  http://127.0.0.1:5000/admin/login"
-    )
-
-    print(
-        "Username: admin"
-    )
-
-    print(
-        "Password: Admin@123"
-    )
-
-    print(
-        "========================================\n"
-    )
-
+    print()
+    print("=" * 55)
+    print("Sakthi Narendran Personal Portfolio")
+    print("=" * 55)
+    print()
+    print("Server:")
+    print("http://127.0.0.1:5000")
+    print()
+    print("Admin:")
+    print("http://127.0.0.1:5000/admin/login")
+    print()
+    print("Username:")
+    print(ADMIN_USERNAME)
+    print()
+    print("Password:")
+    print("Use ADMIN_PASSWORD environment variable")
+    print()
+    print("=" * 55)
 
     app.run(
-
         host="127.0.0.1",
-
         port=5000,
-
         debug=True
-
     )
