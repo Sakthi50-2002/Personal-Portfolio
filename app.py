@@ -34,7 +34,7 @@ app.secret_key = os.environ.get(
 )
 
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@123")
+ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
 ADMIN_ROLE = "Super Admin"
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
